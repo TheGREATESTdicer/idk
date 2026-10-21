@@ -163,4 +163,73 @@ render();
 })();
 </script>
 </body>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+import {
+  getDatabase, ref, set, onValue
+} from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
+import {
+  getAuth, signInAnonymously
+} from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAxKvvCc-KcLuJV15xECYvSwK5CYmzPNwg",
+  authDomain: "online-headless-dice.firebaseapp.com",
+  databaseURL: "https://online-headless-dice-default-rtdb.firebaseio.com",
+  projectId: "online-headless-dice",
+  storageBucket: "online-headless-dice.firebasestorage.app",
+  messagingSenderId: "438419727698",
+  appId: "1:438419727698:web:37364819b21314e7f5c68b",
+  measurementId: "G-FB5XBMR81J"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const auth = getAuth(app);
+const settingsRef = ref(db, "diceSettings");
+const selectors = [0, 1, 2, 3].map(
+  i => document.getElementById("color" + i)
+);
+
+let ready = false;
+let applyingRemote = false;
+
+signInAnonymously(auth).then(() => {
+  onValue(settingsRef, snapshot => {
+    const saved = snapshot.val();
+
+    if (!saved) {
+      ready = true;
+      set(settingsRef, {
+        colors: selectors.map(s => s.value)
+      });
+      return;
+    }
+
+    if (Array.isArray(saved.colors)) {
+      applyingRemote = true;
+      selectors.forEach((select, i) => {
+        if (saved.colors[i]) select.value = saved.colors[i];
+      });
+      applyingRemote = false;
+    }
+
+    ready = true;
+  });
+}).catch(error => {
+  console.error("Firebase sign-in failed:", error);
+  alert("Couldn't connect to shared colors. Check Firebase settings.");
+});
+
+selectors.forEach(select => {
+  select.addEventListener("change", () => {
+    if (!ready || applyingRemote || !auth.currentUser) return;
+
+    set(settingsRef, {
+      colors: selectors.map(s => s.value)
+    }).catch(error => console.error("Color sync failed:", error));
+  });
+});
+</script>
+
 </html>
